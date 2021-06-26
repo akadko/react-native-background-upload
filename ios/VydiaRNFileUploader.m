@@ -17,6 +17,7 @@ static NSString *BACKGROUND_SESSION_ID = @"ReactNativeBackgroundUpload";
 NSMutableDictionary *_responsesData;
 NSURLSession *_urlSession = nil;
 void (^backgroundSessionCompletionHandler)(void) = nil;
+NSURL *bodyTempFile = nil;
 
 + (BOOL)requiresMainQueueSetup {
     return YES;
@@ -220,10 +221,11 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
             [request setValue:[NSString stringWithFormat:@"multipart/form-data; boundary=%@", uuidStr] forHTTPHeaderField:@"Content-Type"];
 
             NSData *httpBody = [self createBodyWithBoundary:uuidStr path:fileURI parameters: parameters fieldName:fieldName];
-            [request setHTTPBodyStream: [NSInputStream inputStreamWithData:httpBody]];
+            NSURL *tempFile = [self writeBodyToTempFile:httpBody];
+
             [request setValue:[NSString stringWithFormat:@"%zd", httpBody.length] forHTTPHeaderField:@"Content-Length"];
 
-            uploadTask = [[self urlSession: appGroup] uploadTaskWithStreamedRequest:request];
+            uploadTask = [[self urlSession: appGroup] uploadTaskWithRequest:request fromFile:tempFile];
         } else {
             if (parameters.count > 0) {
                 reject(@"RN Uploader", @"Parameters supported only in multipart type", nil);
@@ -261,7 +263,7 @@ RCT_EXPORT_METHOD(cancelUpload: (NSString *)cancelUploadId resolve:(RCTPromiseRe
 }
 
 RCT_EXPORT_METHOD(canSuspendIfBackground) {
-    NSLog(@"RNBU canSuspendIfBackground");    
+    NSLog(@"RNBU canSuspendIfBackground");
     if (backgroundSessionCompletionHandler) {
         backgroundSessionCompletionHandler();
         NSLog(@"RNBU did call backgroundSessionCompletionHandler (canSuspendIfBackground)");
@@ -307,6 +309,13 @@ RCT_EXPORT_METHOD(canSuspendIfBackground) {
     [httpBody appendData:[[NSString stringWithFormat:@"--%@--\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
 
     return httpBody;
+}
+
+- (NSURL *)writeBodyToTempFile: (NSData *) httpBody {
+    NSString *pathToWrite = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+    NSURL *pathUrl = [NSURL fileURLWithPath:pathToWrite];
+    [httpBody writeToFile:pathToWrite atomically:YES];
+    return pathUrl;
 }
 
 - (NSURLSession *)urlSession: (NSString *) groupId {
@@ -356,6 +365,9 @@ didCompleteWithError:(NSError *)error {
             NSLog(@"RNBU did error upload %@", task.taskDescription);
         }
     }
+    if (bodyTempFile) {
+        [[NSFileManager defaultManager] removeItemAtURL:bodyTempFile error:nil];
+    }
 }
 
 - (void)URLSession:(NSURLSession *)session
@@ -379,18 +391,6 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
         _responsesData[@(dataTask.taskIdentifier)] = responseData;
     } else {
         [responseData appendData:data];
-    }
-}
-
-
-- (void)URLSession:(NSURLSession *)session
-              task:(NSURLSessionTask *)task
- needNewBodyStream:(void (^)(NSInputStream *bodyStream))completionHandler {
-
-    NSInputStream *inputStream = task.originalRequest.HTTPBodyStream;
-
-    if (completionHandler) {
-        completionHandler(inputStream);
     }
 }
 
