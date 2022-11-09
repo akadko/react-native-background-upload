@@ -28,7 +28,10 @@ Note: if you are installing on React Native < 0.47, use `react-native-background
 
 ##### Android
 
-No further actions required.
+###### ProGuard
+Add this to your ProGuard configuration:
+
+`-keep class net.gotev.uploadservice.** { *; }`
 
 ### Automatic Native Library Linking (React Native < 0.60)
 
@@ -300,6 +303,7 @@ Event Data
 |`id`|string|Required|The ID of the upload.|
 |`responseCode`|string|Required|HTTP status code received|
 |`responseBody`|string|Required|HTTP response body|
+|`responseHeaders`|string|Required|HTTP response headers (Android)|
 
 ### cancelled
 
@@ -449,7 +453,7 @@ Just add it above (not within) `dependencies` and you'll be fine.
 
 
 ## BREAKING CHANGE IN 2.0
-Two big things happened in version 2.0.  First, thehe Android package name had to be changed, as it conflicted with our own internal app.  My bad.  Second, we updated the android upload service dependency to the latest, but that requires the app have a compileSdkVersion and targetSdkVersion or 25.
+Two big things happened in version 2.0.  First, the Android package name had to be changed, as it conflicted with our own internal app.  My bad.  Second, we updated the android upload service dependency to the latest, but that requires the app have a compileSdkVersion and targetSdkVersion or 25.
 
 To upgrade:
 In `MainApplication.java`:

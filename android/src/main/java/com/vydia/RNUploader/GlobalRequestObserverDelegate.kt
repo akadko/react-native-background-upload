@@ -22,7 +22,6 @@ class GlobalRequestObserverDelegate(reactContext: ReactApplicationContext) : Req
   }
 
   override fun onError(context: Context, uploadInfo: UploadInfo, exception: Throwable) {
-
     val params = Arguments.createMap()
     params.putString("id", uploadInfo.uploadId)
 
@@ -45,6 +44,10 @@ class GlobalRequestObserverDelegate(reactContext: ReactApplicationContext) : Req
   }
 
   override fun onSuccess(context: Context, uploadInfo: UploadInfo, serverResponse: ServerResponse) {
+    val headers = Arguments.createMap()
+    for ((key, value) in serverResponse.headers) {
+      headers.putString(key, value)
+    }
     val params = Arguments.createMap()
     params.putString("id", uploadInfo.uploadId)
     params.putInt("responseCode", serverResponse.code)
